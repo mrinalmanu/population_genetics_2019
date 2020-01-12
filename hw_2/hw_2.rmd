@@ -1,0 +1,105 @@
+---
+title: "hw_2"
+author: "Mrinal Vashisth"
+date: "12/18/2019"
+output: 
+  html_document:
+    self_contained: no
+---
+
+############################################################################
+# Soln 1
+
+Given:
+ subpopulation 1) p1 = 0.8, q1 = 0.2
+
+ subpopulation 2) p2 = 0.55, q2 = 0.45
+
+Lets calculate total population allele frequencies (let $n$ be the size of each subpopulation):
+
+$p_{total} = \frac{n*p1 + n*p2}{2*n}=\frac{p1+p2}{2}=0.675$
+
+$q_{total} = \frac{q1+q2}{2}=1-p_{total}=0.325$
+
+F-statistics:
+$$F_{ST} = \frac{H_T - H_S}{H_T}$$
+
+Heterozygosity:
+
+$H_T=2*p_{total}*q_{total}=2*0.675*0.325=0.43875$
+
+For subpopulation 1: $H_{1T}=2*p1*q1=2*0.8*0.2=0.32$
+
+For subpopulation 2: $H_{2T}=2*p2*q2=2*0.55*0.45=0.495$
+
+Average of subpopulations:
+$H_S = \frac{H_{1T} + H_{2T}}{2}=\frac{0.32+0.495}{2}=0.4075$
+
+**Finally:** $F_{ST}= 1-\frac{H_S}{H_T}\approx0.07$
+
+F-statistics close to 0, so we could say that these two subpopulations **are not isolated**.
+
+Source: http://www.uwyo.edu/dbmcd/molmark/practica/fst.html
+
+############################################################################
+# Soln 2
+
+We can already begin to see three splits as proposed in the original paper.
+
+![image](/home/mrinalmanu/Desktop/pop_gen_hws/hw_2/panda_pops/k_3.jpg)
+
+
+![image](//home/mrinalmanu/Desktop/pop_gen_hws/hw_2/panda_pops/k_4.jpg)
+![image](/home/mrinalmanu/Desktop/pop_gen_hws/hw_2/panda_pops/k_5.jpg)
+
+Clearly for 5 clusters we can see that one unique cluster pops out. Most likely this is Giant Panda as mentioned in the oringal paper.
+
+In all three images (k=3,4,and 5), the cluster for Polar bears remain distinct. In other words the clustral membership in Polar bear cluster remains exclusive. They are also homogenous in comparison, as suggested by the findings in original paper.
+
+![image](/home/mrinalmanu/Desktop/pop_gen_hws/hw_2/main.png)
+
+############################################################################
+# Soln 4 
+
+Lets draw the skyline plot for these parameters:
+
+```{r}
+library(ape)
+library(ggplot2)
+z <- coalescent.intervals(c(6000,2500,1000))
+skylineplot(z)
+```
+
+Here, the effective population size is increasing from past to present. The population size has been increasing since last time 6000 years ago
+
+############################################################################
+# Soln 4 
+
+Questions:
+1) What is the (approximately) median log of posterior probability as shown by Tracer?
+Please provide the plot of the distribution.
+
+around -27825, as written in the statistics column.
+
+![image](/home/mrinalmanu/Desktop/pop_gen_hws/hw_2/vot.png)
+
+
+2) How does the population size change over time? Were there any bottlenecks?
+Please provide the skyline plot.
+
+The population has a slow growth. At the end it seems like a bottleneck, as can be seen in the skyline plot.
+
+
+![image](/home/mrinalmanu/Desktop/pop_gen_hws/hw_2/skyline.png)
+
+3) Compare your results with plots from the original paper. Which population was
+used in your analysis? Are there any differences in N e values?
+
+It seems like Sub-saharan population was used in our analysis. 
+
+Overall, N e values seem to be in the same magnitude.
+
+  
+
+
+

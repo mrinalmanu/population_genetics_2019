@@ -1,0 +1,526 @@
+---
+title: "pop_gen_hw_1"
+author: "Mrinal Vashisth"
+date: "11/1/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+#####################################################################
+# ALL CODE IN ONE PLACE
+#####################################################################
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#imports
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(colorRamps)
+library(reshape2)
+library(ggpubr)
+set.seed(40)
+```
+```{r echo=TRUE}
+# functions
+
+wright_fisher_selective <- function(p, N, gens, w_11, w_12, w_22) {
+  ac = c(p)
+  for (x in 1:gens) {
+    total_fitness = p * p * w_11 + 2 * p * (1 - p) * w_12 + ((1 - p) ^ 2) * w_22
+    p_gf = (p * p * w_11 + p * (1 - p) * w_12)/total_fitness
+    p = rbinom(1, 2 * N, p_gf)/(2 * N)
+    ac = c(ac, p)
+  }
+  return(ac)
+}
+
+wright_fisher_sim <- function(p, N, gens) {
+  answ = c(p)
+  for (i in 1:gens){
+    p_new = rbinom(1, 2*N, answ[length(answ)]) / (2*N)
+    answ = c(answ, p_new)
+  } 
+  return(answ)
+}
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# part 2: chisq test
+pp <- 0.775*0.775
+qq <- 0.225*0.225
+pq_2 <- 2*0.775*0.225
+freqs <- c(pp*100,pq_2*100,qq*100)
+ something <- data.frame("expected" = freqs, "observed" = c(60,35,10))
+
+something_chisq<- chisq.test(something)
+
+text_for <- 'We see that X-squared is:'
+
+# part 3: wright fisher
+
+jet = matlab.like2(100)
+
+# Simultaing the drift for freq  0.5
+
+n_iter = 250 # number of iterations
+n_gen = 20
+N = 100 # effective population size
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_sim(p, N, n_gen))
+
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df_1 = melt(tr_df, id.vars='generation')
+
+p1 <- ggplot(plot_df_1, aes(x=generation, y=value, group=variable)) + geom_line() + 
+  scale_y_continuous(limits=c(0, 1)) + ggtitle('a.) Simultaing the drift for freq  0.5')
+
+# b.) Simultaing the drift for freq  0.1
+
+n_iter = 250 # number of iterations
+n_gen = 20
+N = 100 # effective population size
+p = 0.1
+
+traj = sapply(1:n_iter, function(x) wright_fisher_sim(p, N, n_gen))
+
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df_2 = melt(tr_df, id.vars='generation')
+
+p2 <- ggplot(plot_df_2, aes(x=generation, y=value, group=variable)) + geom_line() + 
+  scale_y_continuous(limits=c(0, 1)) + ggtitle('b.) Simultaing the drift for freq  0.1')
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# data.frame to be filled
+wf_df <- data.frame()
+
+# effective population sizes
+sizes <- c(100,100)
+
+# starting allele frequencies
+starting_p <- c(0.5, 0.1)
+
+# number of generations
+n_gen <- 1000
+
+# number of replicates per simulation
+n_reps <- 20
+
+# run the simulations
+for(N in sizes){
+  for(p in starting_p){
+    p0 <- p
+    for(j in 1:n_gen){
+      X <- rbinom(n_reps, 2*N, p)
+      p <- X / (2*N) 
+      rows <- data.frame(replicate = 1:n_reps, N = rep(N, n_reps), 
+                         gen = rep(j, n_reps), p0 = rep(p0, n_reps), 
+                         p = p)
+      wf_df <- bind_rows(wf_df, rows)
+    }
+  }
+}
+
+# plot it up!
+wf_df_plot <- ggplot(wf_df, aes(x = gen, y = p, group = replicate)) +
+     geom_path(alpha = .5) + facet_grid(N ~ p0) + guides(colour=FALSE)
+
+
+# part 4
+#####################################################################
+# Case 1) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8
+#####################################################################
+# Adding selection to model
+n_iter = 100 # number of iterations
+n_gen = 100
+#####################################################################
+w_11 = 1
+w_12 = 0.9
+w_22 = 0.8
+N = 100000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+y1<- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line() 
+
+z1 <- ggplot(subset_df, aes(x= variable, fill=generation)) + geom_histogram(stat='count', show.legend = FALSE) + ggtitle('Case 1) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8')
+
+text1<- 'Case 1) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8, n_iter=100, generation = 100'
+m1 <- mean(plot_df$value)
+
+
+#####################################################################
+# Case 2) pp fitness = 1, pq fitness = 1, qq fitness = 0.8
+#####################################################################
+
+# Adding selection to model
+n_iter = 100 # number of iterations
+n_gen = 100
+#####################################################################
+w_11 = 1
+w_12 = 1
+w_22 = 0.8
+N = 100000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+y2<- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line() 
+
+z2 <- ggplot(subset_df, aes(x= variable, fill=generation)) + geom_histogram(stat='count', show.legend = FALSE) + ggtitle('Case 2) pp fitness = 1, pq fitness = 1, qq fitness = 0.8')
+
+text2<- 'Case 2) pp fitness = 1, pq fitness = 1, qq fitness = 0.8, n_iter=100, generations=100'
+m2 <- mean(plot_df$value)
+
+#####################################################################
+# Case 3) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8
+#####################################################################
+# Adding selection to model
+n_iter = 100 # number of iterations
+n_gen = 500
+#####################################################################
+w_11 = 1
+w_12 = 0.9
+w_22 = 0.8
+N = 100000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+y3<- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line() 
+
+z3 <- ggplot(subset_df, aes(x= variable, fill=generation)) + geom_histogram(stat='count', show.legend = FALSE) + ggtitle('Case 3) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8')
+
+text3<- 'Case 3) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8, n_iter=100, generations=500'
+m3 <- mean(plot_df$value)
+
+
+#####################################################################
+# Case 4) pp fitness = 1, pq fitness = 1, qq fitness = 0.8
+#####################################################################
+# Adding selection to model
+n_iter = 100 # number of iterations
+n_gen = 500
+#####################################################################
+# Adding selection to model
+
+w_11 = 1
+w_12 = 1
+w_22 = 0.8
+N = 100000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+y4<- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line() 
+
+z4 <- ggplot(subset_df, aes(x= variable)) + geom_histogram(stat='count', fill='green', show.legend = FALSE) + ggtitle('Case 4) pp fitness = 1, pq fitness = 1, qq fitness = 0.8')
+
+text4<- 'Case 4) pp fitness = 1, pq fitness = 1, qq fitness = 0.8, n_iter=100, generations=500'
+m4 <- mean(plot_df$value)
+
+
+#####################################################################
+# Case 5) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8
+#####################################################################
+# Adding selection to model
+n_iter = 100 # number of iterations
+n_gen = 1000
+#####################################################################
+w_11 = 1
+w_12 = 0.9
+w_22 = 0.8
+N = 100000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+y5<- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line()
+
+z5 <- ggplot(subset_df, aes(x= variable))+ geom_histogram(stat='count', fill='green', show.legend = FALSE) + ggtitle('Case 5) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8')
+
+
+text5<- 'Case 5) pp fitness = 1, pq fitness = 0.9, qq fitness = 0.8, n_iter=100, generations = 1000'
+m5 <- mean(plot_df$value)
+
+
+#####################################################################
+# Case 6) pp fitness = 1, pq fitness = 1, qq fitness = 0.8
+#####################################################################
+# Adding selection to model
+n_iter = 100 # number of iterations
+n_gen = 1000
+#####################################################################
+# Adding selection to model
+
+w_11 = 1
+w_12 = 1
+w_22 = 0.8
+N = 100000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+y6<- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line()
+
+z6 <- ggplot(subset_df, aes(x= variable)) + geom_histogram(stat='count', fill='green', show.legend = FALSE) + ggtitle('Case 6) pp fitness = 1, pq fitness = 1, qq fitness = 0.8')
+
+text6<- 'Case 6) pp fitness = 1, pq fitness = 1, qq fitness = 0.8, n_iter=100, generations = 1000'
+m6 <- mean(plot_df$value)# Mean allele frequency in each simulation:
+
+
+# part 5 code
+# Adding selection to model
+
+w_11 = 0.6
+w_12 = 1
+w_22 = 0.6
+N = 1000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+x1 <- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line() + 
+  scale_y_continuous(limits=c(0, 1))
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+text11<- 'w_11 = 0.6 | w_12 = 1 | w_22 = 0.6 | N = 1000 | p = 0.5 |'
+g5 <- mean(plot_df$value)
+
+
+# Adding selection to model
+
+w_11 = 0.8
+w_12 = 1
+w_22 = 0.2
+N = 1000
+p = 0.5
+
+traj = sapply(1:n_iter, function(x) wright_fisher_selective(p, N, n_gen, w_11, w_12, w_22))
+  
+tr_df = as.data.frame(traj)
+tr_df$generation = 1:nrow(tr_df)
+
+plot_df = melt(tr_df, id.vars='generation')
+
+x2 <- ggplot(plot_df, aes(x=generation, y=value, group=variable)) + geom_line() + 
+  scale_y_continuous(limits=c(0, 1))
+
+subset_df <- plot_df %>% filter(generation == nrow(tr_df))
+
+text22<- 'w_11 = 0.8 | w_12 = 1 | w_22 = 0.2 | N = 1000 | p = 0.5'
+g6 <- mean(plot_df$value)
+
+```
+
+
+
+#####################################################################
+# ALL ANSWERS IN ONE PLACE
+#####################################################################
+
+#####
+# 1 #
+#####
+AA:Aa:aa::65:25:10
+
+Assuming incomplete dominance,
+
+Total = (65+25+10)*2 = 200
+Freq A = (130+25)/200 = 0.775
+Freq a = 1-0.775 = 0.225
+
+#####
+# 2 #
+#####
+Let’s cross heterozygotes, assuming Mendelian dominance
+
+
+      A    a   
+ --- ---- ---- 
+  A   AA   Aa  
+  a   Aa   aa  
+
+
+Chi squared,
+
++----------+---------------------+-----------------------+----------------------+
+|          | Dominant homozygote | Dominant heterozygote | Recessive homozygote |
++----------+---------------------+-----------------------+----------------------+
+| Expected | 
+```{r} 
+c(pp*100,pq_2*100,qq*100)                                                                         
+
+``` 
+                                                                              
+| Observed |                  65 |                    25 |                   10 |
++----------+---------------------+-----------------------+----------------------+
+
+
+Chi_sq =  sigma| [for  {I} 0 to N]  (obseved{i }– expected{i})/ expected{i}
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+text_for
+something_chisq$statistic
+```
+
+The critical value for the chi-square in this case is 5.991
+
+We therefore ACCEPT THE NULL hypothesis, and conclude that there is NO SIGNIFICANT DIFFERENCE between the observed and expected frequencies of alleles. The frequencies of the three alleles at this locus are significantly similar between the two populations.
+
+#####
+# 3 #
+#####
+
+```{r}
+ggarrange(p1, p2 + rremove("x.text"),
+          ncol = 1, nrow = 2)
+
+```
+We can see that for small population size such as 250, the allele has more chances to be eliminated in case the starting frequency of the allele is small. We can see that at p = 0.1, the allele has almost every time been eleminated within 10 generations. And consequently the other allele has been fixated.
+```{r}
+wf_df_plot
+
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# Mean probability of allele frequencies:
+wo <- 'For p_initial = 0.1'
+wo
+tapply(wf_df$p0==0.1, wf_df$p==0, mean) 
+wo <- 'For p_initial = 0.5'
+wo
+tapply(wf_df$p0==0.5, wf_df$p==0, mean) 
+
+```
+We know that, the probability of fixation or loss of an allele in a pure drift Wright-Fisher model only depends on the previous count of the allele and the effective population size.
+
+Intiutively probablities with higher initial frequencies are less likely to be lost for a big enough effective size of populations. As can be seen from the results, when intial p was high (0.5), p0 was 36%. As opposed to when p (0.1), where p0 reached 64%.
+
+#####
+# 4 #
+#####
+
+*Run the simulations three times*
+
+```{r}
+ggarrange(z1, z2, z3, z4, z5, z6 + rremove("x.text"),
+          ncol = 3, nrow = 2)
+
+```
+
+*What is the mean value of an allele frequency at the end of the simulation in each*
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+text1
+m1
+text2
+m2
+text3
+m3
+text4
+m4
+text5
+m5
+text6
+m6
+
+```
+
+
+*Does the allele frequency reach a plateau in each of the two cases? Why?*
+
+Yes, as we can see that in each of the two cases we have a plateau.
+
+```{r}
+
+ggarrange(y1, y2, y3, y4, y5, y6 + rremove("x.text"),
+          ncol = 2, nrow = 3)
+```
+
+We see that a species that consists of one large panmictic population reaches an adaptive plateau by mass selection, and it ends up with evolutionary stagnation. 
+
+#####
+# 5 #
+#####
+
+*simulations for the following fitness scores*
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+text11
+g5
+text22
+g6
+```
+```{r}
+fitnesses <- c(g5, g6)
+mt_fitness <- sapply(fitnesses, function(x) p * p * w_11 + 2 * p * (1 - p) * w_12 + ((1 - p) ^ 2) * w_22)
+
+mt_fitness
+
+```
+*for each combination of fitness scores. Do the values differ and why?*
+
+Clearly the values of p_mean are different but the mean total fitness remains the same. One hint comes from the parameters themselves. If we look at second combination, for example, nw_pp, and nw_qq have seperate fitnessess and clearly nw_pp (0.8) > nw_qq (0.2). We can see an exaggerated difference for N = 1000 and p =0.5 as clearly nw_pp is preferred over nw_qq.
+
+While in the first case where nw_pp (0.6) is the same as nw_qq there is no such preference.
+```{r}
+
+ggarrange(x1, x2 + rremove("x.text"),
+          ncol = 2, nrow = 1)
+
+```

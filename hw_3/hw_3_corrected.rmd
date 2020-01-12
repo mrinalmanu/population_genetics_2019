@@ -1,0 +1,210 @@
+---
+title: "hw_3_pop_gen"
+author: "Mrinal Vashisth"
+date: "12/11/2019"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+
+```
+
+
+###################################################################
+
+# Solution 1
+
+a
+012345
+AGCTAA
+AGCTCC
+AGGTAG
+AGCTCT
+AACTAC
+
+EHH[0] = 5*(5-1)/ 20 = 1
+EHH[01] = 4*3 / 20 = 0.6
+EHH[012] = 3*2 / 20 = 0.3
+EHH[0123] = 3*2 = 0.3
+EHH[01234] = 2*1 / 20 = 0.1
+EHH[012345] = 0
+
+A
+012345
+GAGTGA
+GTCCAA
+GACTGA
+GTGCAA
+GAACAA
+
+EHH[0] = 5*(5-1)/ 20 = 1
+EHH[01] = 3*(3-1) + 2*(2-1) / 20 = 0.4
+EHH[012] = 0
+EHH[0123] = 0
+EHH[01234] = 0
+EHH[012345] = 0
+
+```{r}
+
+ehh_1 <- c(1, 0.6, 0.3, 0.3, 0.1, 0)
+ehh_2 <- c(1, 0.4, 0, 0, 0, 0)
+pos <- c(0, 1, 2, 3, 4, 5)
+ehh <- data.frame(ehh_1, ehh_2, pos)
+
+p <- ggplot() + 
+  geom_line(data = ehh, aes(x = pos, y = ehh_1), color = "blue") +
+  geom_line(data = ehh, aes(x = pos, y = ehh_2), color = "red") +
+  xlab('Value') +
+  ylab('EHH')
+
+p
+```
+
+We know that, for alleles under selection, EHH will decrease slower. In our case allele 'a' is under positive selection.
+
+###################################################################
+
+# Solution 2
+
+I selected PAX6 gene which is involved in neural development.\
+
+From gnomAD this gene has a oe of 0.17 which means that a loos of function variants was observed in only 17% of the variants. This means that this gene is highly intolerant to variation.
+
+The pLI for this gene is 1! The closer pLI is to one, the more intolerant of protein-truncating variants the transcript appears to be. We consider pLI ≥ 0.9 as an extremely intolerant set of transcripts.\
+
+![image](/home/mrinalmanu/Desktop/pop_gen_hws/hw_3/screen_2.png)
+
+
+###################################################################
+
+# Solution 3
+
+```{r}
+
+ESP_SNP_data <- data.frame(read.delim("~/Desktop/pop_gen_hws/hw_3/ESP_SNP_data.tsv"))
+df <-ESP_SNP_data
+df$LOC <- NULL
+unique(ESP_SNP_data$EFF)
+```
+So we have Three levels for EFF (effect).
+
+Stop gained is technically non-synonymous.
+```{r}
+
+df$EFF <- gsub("STOP_GAINED", "NON_SYNONYMOUS_CODING", df$EFF)
+df$EFF <- gsub("NON_SYNONYMOUS_CODING", "NON_SYNONYMOUS", df$EFF)
+df$EFF <- gsub("SYNONYMOUS_CODING", "SYNONYMOUS", df$EFF)
+
+# Let's get all synonymous and non synonymous statistics
+new <- df %>% 
+  group_by(GENE, EFF) %>% 
+  summarise_all(sum)
+
+
+```
+
+```{r}
+# Let's drop genes which do not have synonymous mutations
+# the logic is that such column should contain factors for EFF greater than 1, i.e. they will have both SYN and NON_SYN levels, and any GENE having SYN/ NON_SYN alone should be dropped
+
+# At first collapse each gene into one row with two effects
+# Remove all NAs
+# Then create new column with statistcs nonsyn/syn
+
+new_wide <- spread(new, EFF, AF)
+# remove NAs
+new_wide <- new_wide %>% drop_na()
+summary(new_wide)
+```
+
+Now we are ready to perform some statistics!
+
+```{r}
+
+new_wide$fn_by_fs <- new_wide$NON_SYNONYMOUS/new_wide$SYNONYMOUS
+
+#pdf("/home/mrinalmanu/Desktop/pop_gen_hws/hw_3/rplot.pdf") 
+qplot(new_wide$GENE, new_wide$fn_by_fs, geom=c("point"))
+#dev.off()
+```
+
+
+```{r}
+
+#sort by mpg (ascending) and cyl (descending)
+newdata <- new_wide[order(new_wide$fn_by_fs),]
+top_100 <- rbind(head(newdata, 50), tail(newdata, 50))
+
+top_100$NON_SYNONYMOUS <- NULL
+top_100$SYNONYMOUS <- NULL
+top_100$fn_by_fs <- format(top_100$fn_by_fs, scientific = FALSE)
+top_100$fn_by_fs <- log2(as.numeric(top_100$fn_by_fs))
+
+qplot(top_100$GENE, round(as.numeric(top_100$fn_by_fs), 2), geom=c("point"))
+
+```
+
+Searching for following genes.
+
+CFL1,PSMA7,FAM228B,POU3F2,PPP3R1,UBALD2,PDIK1L,YAF2,GNG8,ARF3,KRTAP7-1,YWHAG,GPR85,PPP1CB,TSPAN13,PRIMA1,HIST1H3C,TMEM233,HIST1H3I,NOVA2,TUBB2A,ING2,CBLN2,DDX39B,ABHD17C,SRSF2,SLC25A5,NIPA1,POLR2L,HIST1H4H,RBBP4,YPEL5,ACTG1,PURB,SPANXN5,RPS16,UBE2Z,LSM5,AGO2,MAGOHB,KRAS,NAP1L1,PSMC2,UFM1,ZFAND5,HSPA8,GSX1,TMEM253,TNFSF12,PPP1CC,TSEN15,LOC401052,MLN,KRTAP12-3C8orf4,SLC25A45,TM4SF19,BTLA,BCL2L10,MT1A,MRPL18,KLRD1,C8orf31,C2orf83,S100A7,KLRC1,HINT3,CLEC1B,PLA2G2C,SAA2,NPW,C2orf88,C2orf70,PSMG4,PSORS1C2,VMO1,GAGE12J,OR4F5,FAM180B,C17orf58,MAGEB16,SPAG11A,LYRM4,CCL15,FMC1,OR52N4,SAA4,OR2T5,ST20,LCE5A,CXCL11,UQCC3,WFDC10B,CLPSL2,SPINK6,HEPN1,KRTAP22-1,KRTAP4-2,C4orf36,DEFB108B
+
+Following pathways were enriched
+
+HALLMARK_ADIPOGENESI
+HALLMARK_ALLOGRAFT_REJECTIO
+HALLMARK_APICAL_JUNCTIO
+HALLMARK_APOPTOSI
+HALLMARK_CHOLESTEROL_HOMEOSTASI
+HALLMARK_E2F_TARGET
+HALLMARK_ESTROGEN_RESPONSE_LAT
+HALLMARK_G2M_CHECKPOIN
+HALLMARK_HEME_METABOLIS
+HALLMARK_IL6_JAK_STAT3_SIGNALIN
+HALLMARK_INFLAMMATORY_RESPONS
+HALLMARK_INTERFERON_ALPHA_RESPONS
+HALLMARK_INTERFERON_GAMMA_RESPONS
+HALLMARK_KRAS_SIGNALING_D
+HALLMARK_KRAS_SIGNALING_U
+HALLMARK_MTORC1_SIGNALIN
+HALLMARK_MYC_TARGETS_V
+HALLMARK_OXIDATIVE_PHOSPHORYLATIO
+HALLMARK_PI3K_AKT_MTOR_SIGNALIN
+HALLMARK_TNFA_SIGNALING_VIA_NFK
+HALLMARK_UNFOLDED_PROTEIN_RESPONS
+HALLMARK_UV_RESPONSE_UP
+
+We can see Adipogenesis, interferon gamma etc. This seems like some kind of infection, and graft rejection or a combination of both.
+
+
+##################### CORRECTIONS #################################
+
+mean fn/fs
+```{r}
+mean(new_wide$fn_by_fs)
+```
+  
+top 100 and bottom 100 together
+
+```{r}
+new_wide$fn_by_fs <- format(new_wide$fn_by_fs, scientific = FALSE)
+newdata <- data.frame(new_wide[order(new_wide$fn_by_fs),])
+
+x <- newdata[order(newdata$fn_by_fs),]
+top_100 <- tail(x, n=100)
+bottom_100 <- head(x, n =100)
+head(top_100)
+head(bottom_100)
+```
+```{r}
+head(top_100$GENE)
+```
+![image](/home/mrinalmanu/Desktop/for_top_100.png)
+
+```{r}
+head(bottom_100$GENE)
+```
+![image](/home/mrinalmanu/Desktop/for_bottom_100.png)
